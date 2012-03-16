@@ -1156,10 +1156,13 @@
   "Seq of forms in a Clojure or ClojureScript file."
   ([f]
      (forms-seq f (clojure.lang.LineNumberingPushbackReader. (io/reader f))))
-  ([f ^java.io.PushbackReader rdr]
-     (if-let [form (read rdr nil nil)]
-       (lazy-seq (cons form (forms-seq f rdr)))
-       (.close rdr))))
+  ([f ^clojure.lang.LineNumberingPushbackReader rdr]
+     (try (if-let [form (read rdr nil nil)]
+            (lazy-seq (cons form (forms-seq f rdr)))
+            (.close rdr))
+          (catch Throwable ex
+            (throw (RuntimeException. (str ex ", compiling:(" *cljs-file*
+                                    ":" (.getLineNumber rdr) ")") ex))))))
 
 (defn rename-to-js
   "Change the file extension from .cljs to .js. Takes a File or a
