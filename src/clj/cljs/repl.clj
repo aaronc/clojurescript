@@ -8,7 +8,8 @@
 
 (ns cljs.repl
   (:refer-clojure :exclude [load-file])
-  (:import java.io.File)
+  (:import [java.io File]
+           [sun.misc Signal SignalHandler])
   (:require [clojure.string :as string]
             [clojure.java.io :as io]
             [cljs.compiler :as comp]
@@ -159,10 +160,19 @@
     (doseq [file (comp/cljs-files-in src-dir)]
       (ana/analyze-file (str "file://" (.getAbsolutePath file))))))
 
+(defn init-interrupt-handler []
+  (let [repl-thread (Thread/currentThread)
+        sig-handler
+        (reify SignalHandler
+          (handle [this signal]
+            (.interrupt repl-thread)))]
+    (Signal/handle (Signal. "INT") sig-handler)))
+
 (defn repl
   "Note - repl will reload core.cljs every time, even if supplied old repl-env"
   [repl-env & {:keys [verbose warn-on-undeclared special-fns]}]
   (prn "Type: " :cljs/quit " to quit")
+  (init-interrupt-handler)
   (binding [ana/*cljs-ns* 'cljs.user
             *cljs-verbose* verbose
             ana/*cljs-warn-on-undeclared* warn-on-undeclared]
